@@ -1,55 +1,83 @@
+#include <Arduino.h>
+
 #include <ESP8266WiFi.h>
-#include <WiFiClient.h>
-#include <ESP8266WebServer.h>
+#include <ESP8266WiFiMulti.h>
 #include <WebSocketsServer.h>
 #include <Hash.h>
 
-const char* ssid = "";
-const char* password = "";
-
-String WebPage = "<!DOCTYPE html><html><style>input[type=\"text\"]{width: 90%; height: 3vh;}input[type=\"button\"]{width: 9%; height: 3.6vh;}.rxd{height: 90vh;}textarea{width: 99%; height: 100%; resize: none;}</style><script>var Socket;function start(){Socket=new WebSocket('ws://' + window.location.hostname + ':81/'); Socket.onmessage=function(evt){document.getElementById(\"rxConsole\").value +=evt.data;}}function enterpressed(){Socket.send(document.getElementById(\"txbuff\").value); document.getElementById(\"txbuff\").value=\"\";}</script><body onload=\"javascript:start();\"> <div><input class=\"txd\" type=\"text\" id=\"txbuff\" onkeydown=\"if(event.keyCode==13) enterpressed();\"><input class=\"txd\" type=\"button\" onclick=\"enterpressed();\" value=\"Send\" > </div><br><div class=\"rxd\"> <textarea id=\"rxConsole\" readonly></textarea> </div></body></html>";
+ESP8266WiFiMulti WiFiMulti;
 
 WebSocketsServer webSocket = WebSocketsServer(81);
-ESP8266WebServer server(80);
+
+#define USE_SERIAL Serial
+
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
+
+    switch(type) {
+        case WStype_DISCONNECTED:
+            USE_SERIAL.printf("[%u] Disconnected!\n", num);
+            break;
+        case WStype_CONNECTED:
+            {
+                IPAddress ip = webSocket.remoteIP(num);
+                USE_SERIAL.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
+        
+        // send message to client
+        webSocket.sendTXT(num, "Connected");
+            }
+            break;
+        case WStype_TEXT:
+//            USE_SERIAL.printf("[%u] get Text: %s\n", num, payload);
+
+               for(int i = 0; i < length; i++) Serial.print((char) payload[i]);
+                  Serial.println();
+               
+
+            // send data to all connected clients
+            // webSocket.broadcastTXT("message here");
+            break;
+        case WStype_BIN:
+            USE_SERIAL.printf("[%u] get binary length: %u\n", num, length);
+            hexdump(payload, length);
+
+            // send message to client
+            // webSocket.sendBIN(num, payload, length);
+            break;
+    }
+
+}
 
 void setup() {
-  Serial.begin(115200);
-  WiFi.begin("Mirecki-Wifi", "password");
-  Serial.println("");
+    // USE_SERIAL.begin(921600);
+    USE_SERIAL.begin(9600);
 
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-   }
-    
-    Serial.println("");
-    Serial.print("Connected to ");
-    Serial.println(ssid);
-    Serial.print("IP address: ");
-    Serial.println(WiFi.localIP());
-    
-    server.on("/", [](){
-    server.send(200, "text/html", WebPage);
-    });
-    
-    server.begin();
-    
+    //Serial.setDebugOutput(true);
+    USE_SERIAL.setDebugOutput(true);
+
+    USE_SERIAL.println();
+    USE_SERIAL.println();
+    USE_SERIAL.println();
+
+    for(uint8_t t = 4; t > 0; t--) {
+        USE_SERIAL.printf("[SETUP] BOOT WAIT %d...\n", t);
+        USE_SERIAL.flush();
+        delay(1000);
+    }
+
+    WiFiMulti.addAP("Mirecki-Wifi", "password");
+
+    while(WiFiMulti.run() != WL_CONNECTED) {
+        delay(100);
+    }
+
     webSocket.begin();
     webSocket.onEvent(webSocketEvent);
 }
 
 void loop() {
     webSocket.loop();
-    server.handleClient();
     if (Serial.available() > 0){
       char c[] = {(char)Serial.read()};
       webSocket.broadcastTXT(c, sizeof(c));
     }
-}
-
-void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length){
-   if (type == WStype_TEXT){
-    for(int i = 0; i < length; i++) Serial.print((char) payload[i]);
-    Serial.println();
-   }
 }
