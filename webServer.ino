@@ -72,7 +72,7 @@ void setup() {
           delay(1000);
       }
 
-    WiFiMulti.addAP("Mirecki-Wifi", "password");
+    WiFiMulti.addAP("ssid", "password");
 
     //WiFi.disconnect();
     while(WiFiMulti.run() != WL_CONNECTED) {
