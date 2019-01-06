@@ -1,76 +1,106 @@
+#include <Arduino.h>
+
 #include <ESP8266WiFi.h>
+#include <ESP8266WiFiMulti.h>
 
-const char* ssid     = "Mirecki-Wifi";
-const char* password = "password";
+#include <WebSocketsClient.h>
 
-WiFiServer server(80);
+#include <Hash.h>
 
-String header;
+ESP8266WiFiMulti WiFiMulti;
+WebSocketsClient webSocket;
 
 
+#define USE_SERIAL Serial1
 
-void setup() {
-  Serial.begin(115200);
-  // Initialize the output variables as outputs
+#define MESSAGE_INTERVAL 30000
+#define HEARTBEAT_INTERVAL 25000
 
-  // Connect to Wi-Fi network with SSID and password
-  Serial.print("Connecting to ");
-  Serial.println(ssid);
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  // Print local IP address and start web server
-  Serial.println("");
-  Serial.println("WiFi connected.");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
-  server.begin();
+uint64_t messageTimestamp = 0;
+uint64_t heartbeatTimestamp = 0;
+bool isConnected = false;
+
+void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
+
+
+    switch(type) {
+        case WStype_DISCONNECTED:
+            USE_SERIAL.printf("[WSc] Disconnected!\n");
+            isConnected = false;
+            break;
+        case WStype_CONNECTED:
+            {
+                USE_SERIAL.printf("[WSc] Connected to url: %s\n",  payload);
+                isConnected = true;
+
+          // send message to server when Connected
+                // socket.io upgrade confirmation message (required)
+        webSocket.sendTXT("5");
+            }
+            break;
+        case WStype_TEXT:
+            USE_SERIAL.printf("[WSc] get text: %s\n", payload);
+
+      // send message to server
+      // webSocket.sendTXT("message here");
+            break;
+        case WStype_BIN:
+            USE_SERIAL.printf("[WSc] get binary length: %u\n", length);
+            hexdump(payload, length);
+
+            // send data to server
+            // webSocket.sendBIN(payload, length);
+            break;
+    }
+
 }
 
-void loop(){
-  WiFiClient client = server.available();   // Listen for incoming clients
+void setup() {
+    // USE_SERIAL.begin(921600);
+    USE_SERIAL.begin(115200);
 
-  if (client) {                             // If a new client connects,
-    Serial.println("New Client.");          // print a message out in the serial port
-    String currentLine = "";                // make a String to hold incoming data from the client
-    while (client.connected()) {            // loop while the client's connected
-      if (client.available()) {             // if there's bytes to read from the client,
-        char c = client.read();             // read a byte, then
-        Serial.write(c);                    // print it out the serial monitor
-        header += c;
-        if (c == '\n') {                    // if the byte is a newline character
-          if (currentLine.length() == 0) {
-            client.println("HTTP/1.1 200 OK");
-            client.println("Content-type:text/html");
-            client.println("Connection: close");
-            client.println();
-            
-            client.println("<!DOCTYPE html><html>");
-            client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
-            client.println("<link rel=\"icon\" href=\"data:,\">");
-            int Analogpin0 = A0;
-            client.println(analogRead(Analogpin0));
-            // Web Page Heading
-            client.println("<body><h1>ESP8266 Web Server</h1>");
-            
-            client.println();
-            // Break out of the while loop
-            break;
-          } else { // if you got a newline, then clear currentLine
-            currentLine = "";
-          }
-        } else if (c != '\r') {  // if you got anything else but a carriage return character,
-          currentLine += c;      // add it to the end of the currentLine
-        }
+    //Serial.setDebugOutput(true);
+    USE_SERIAL.setDebugOutput(true);
+
+    USE_SERIAL.println();
+    USE_SERIAL.println();
+    USE_SERIAL.println();
+
+      for(uint8_t t = 4; t > 0; t--) {
+          USE_SERIAL.printf("[SETUP] BOOT WAIT %d...\n", t);
+          USE_SERIAL.flush();
+          delay(1000);
       }
+
+    WiFiMulti.addAP("Mirecki-Wifi", "password");
+
+    //WiFi.disconnect();
+    while(WiFiMulti.run() != WL_CONNECTED) {
+        delay(100);
     }
-    // Clear the header variable
-    header = "";
-    // Close the connection
-    client.stop();
-    Serial.println("Client disconnected.");
-    Serial.println("");
-  }
+
+    webSocket.beginSocketIO("192.168.1.80", 80);
+    //webSocket.setAuthorization("user", "Password"); // HTTP Basic Authorization
+    webSocket.onEvent(webSocketEvent);
+
+}
+
+void loop() {
+    webSocket.loop();
+
+    if(isConnected) {
+
+        uint64_t now = millis();
+
+        if(now - messageTimestamp > MESSAGE_INTERVAL) {
+            messageTimestamp = now;
+            // example socket.io message with type "messageType" and JSON payload
+            webSocket.sendTXT("42[\"messageType\",{\"greeting\":\"hello\"}]");
+        }
+        if((now - heartbeatTimestamp) > HEARTBEAT_INTERVAL) {
+            heartbeatTimestamp = now;
+            // socket.io heartbeat message
+            webSocket.sendTXT("2");
+        }
+    }
 }
