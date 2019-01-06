@@ -2,54 +2,45 @@
 
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
-
-#include <WebSocketsClient.h>
-
+#include <WebSocketsServer.h>
 #include <Hash.h>
 
 ESP8266WiFiMulti WiFiMulti;
-WebSocketsClient webSocket;
 
+WebSocketsServer webSocket = WebSocketsServer(81);
 
 #define USE_SERIAL Serial1
 
-#define MESSAGE_INTERVAL 30000
-#define HEARTBEAT_INTERVAL 25000
-
-uint64_t messageTimestamp = 0;
-uint64_t heartbeatTimestamp = 0;
-bool isConnected = false;
-
-void webSocketEvent(WStype_t type, uint8_t * payload, size_t length) {
-
+void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
 
     switch(type) {
         case WStype_DISCONNECTED:
-            USE_SERIAL.printf("[WSc] Disconnected!\n");
-            isConnected = false;
+            USE_SERIAL.printf("[%u] Disconnected!\n", num);
             break;
         case WStype_CONNECTED:
             {
-                USE_SERIAL.printf("[WSc] Connected to url: %s\n",  payload);
-                isConnected = true;
-
-          // send message to server when Connected
-                // socket.io upgrade confirmation message (required)
-        webSocket.sendTXT("5");
+                IPAddress ip = webSocket.remoteIP(num);
+                USE_SERIAL.printf("[%u] Connected from %d.%d.%d.%d url: %s\n", num, ip[0], ip[1], ip[2], ip[3], payload);
+        
+        // send message to client
+        webSocket.sendTXT(num, "Connected");
             }
             break;
         case WStype_TEXT:
-            USE_SERIAL.printf("[WSc] get text: %s\n", payload);
+            USE_SERIAL.printf("[%u] get Text: %s\n", num, payload);
 
-      // send message to server
-      // webSocket.sendTXT("message here");
+            // send message to client
+            // webSocket.sendTXT(num, "message here");
+
+            // send data to all connected clients
+            // webSocket.broadcastTXT("message here");
             break;
         case WStype_BIN:
-            USE_SERIAL.printf("[WSc] get binary length: %u\n", length);
+            USE_SERIAL.printf("[%u] get binary length: %u\n", num, length);
             hexdump(payload, length);
 
-            // send data to server
-            // webSocket.sendBIN(payload, length);
+            // send message to client
+            // webSocket.sendBIN(num, payload, length);
             break;
     }
 
@@ -66,41 +57,22 @@ void setup() {
     USE_SERIAL.println();
     USE_SERIAL.println();
 
-      for(uint8_t t = 4; t > 0; t--) {
-          USE_SERIAL.printf("[SETUP] BOOT WAIT %d...\n", t);
-          USE_SERIAL.flush();
-          delay(1000);
-      }
+    for(uint8_t t = 4; t > 0; t--) {
+        USE_SERIAL.printf("[SETUP] BOOT WAIT %d...\n", t);
+        USE_SERIAL.flush();
+        delay(1000);
+    }
 
-    WiFiMulti.addAP("ssid", "password");
+    WiFiMulti.addAP("Mirecki-Wifi", "password");
 
-    //WiFi.disconnect();
     while(WiFiMulti.run() != WL_CONNECTED) {
         delay(100);
     }
 
-    webSocket.beginSocketIO("192.168.1.80", 80);
-    //webSocket.setAuthorization("user", "Password"); // HTTP Basic Authorization
+    webSocket.begin();
     webSocket.onEvent(webSocketEvent);
-
 }
 
 void loop() {
     webSocket.loop();
-
-    if(isConnected) {
-
-        uint64_t now = millis();
-
-        if(now - messageTimestamp > MESSAGE_INTERVAL) {
-            messageTimestamp = now;
-            // example socket.io message with type "messageType" and JSON payload
-            webSocket.sendTXT("42[\"messageType\",{\"greeting\":\"hello\"}]");
-        }
-        if((now - heartbeatTimestamp) > HEARTBEAT_INTERVAL) {
-            heartbeatTimestamp = now;
-            // socket.io heartbeat message
-            webSocket.sendTXT("2");
-        }
-    }
 }
