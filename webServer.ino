@@ -9,7 +9,7 @@ ESP8266WiFiMulti WiFiMulti;
 
 WebSocketsServer webSocket = WebSocketsServer(81);
 
-#define USE_SERIAL Serial1
+#define USE_SERIAL Serial
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
 
@@ -48,14 +48,14 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 
 void setup() {
     // USE_SERIAL.begin(921600);
-    USE_SERIAL.begin(115200);
+    USE_SERIAL.begin(9600);
 
     //Serial.setDebugOutput(true);
     USE_SERIAL.setDebugOutput(true);
 
     USE_SERIAL.println();
     USE_SERIAL.println();
-    USE_SERIAL.println();
+    USE_SERIAL.println("booted");
 
     for(uint8_t t = 4; t > 0; t--) {
         USE_SERIAL.printf("[SETUP] BOOT WAIT %d...\n", t);

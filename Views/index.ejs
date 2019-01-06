@@ -11,22 +11,28 @@
     <script type="text/javascript" src="/socket.io/socket.io.js"></script>
     <title>Document</title>
 </head>
-<p class="data"></p>
+<p class="load"></p>
+<button class="click">click to send data to esp8266</button>
 <script>
     $(document).ready(function () {
 
 
-        const url = 'wss://192.168.1.80:80'
+        // var ipAddress = '192.168.1.80';
+        // var port = '80';
+        const url = 'wss://192.168.1.80:81'
         const connection = new WebSocket(url)
-        var ipAddress = '192.168.1.80';
-        var port = '80';
+
         connection.onopen = function (event) {
+            $('.load').append("done loading...");
             connection.onmessage = function (event) {
-                console.debug("WebSocket message received:", event);
+                console.log("WebSocket message received:", event);
             };
             console.log("WebSocket is open now.");
             connection.send("hello world");
         };
+        $('.click').click(function(){
+            connection.send("click");
+        })
     });
 // socket.connect('ws://' + ipAddress + ':' + port);
 </script>
