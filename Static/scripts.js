@@ -16,7 +16,7 @@ $(document).ready(function () {
         connection.send("hello world");
     };
     $('.click').click(function(){
-        connection.send($(".res").text());
+        connection.send($(".text").val());
     })
 });
 // socket.connect('ws://' + ipAddress + ':' + port);
