@@ -8,7 +8,7 @@
 ESP8266WiFiMulti WiFiMulti;
 
 WebSocketsServer webSocket = WebSocketsServer(81);
-
+const int buttonPin = D2;
 #define USE_SERIAL Serial
 
 void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length) {
@@ -50,7 +50,7 @@ void webSocketEvent(uint8_t num, WStype_t type, uint8_t * payload, size_t length
 void setup() {
     // USE_SERIAL.begin(921600);
     USE_SERIAL.begin(9600);
-
+    pinMode(buttonPin, INPUT);
     //Serial.setDebugOutput(true);
     USE_SERIAL.setDebugOutput(true);
 
@@ -80,4 +80,15 @@ void loop() {
       char c[] = {(char)Serial.read()};
       webSocket.broadcastTXT(c, sizeof(c));
     }
+    int buttonState = 0; 
+      // read the state of the pushbutton value:
+  buttonState = digitalRead(buttonPin);
+
+  // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
+  if (buttonState == HIGH) {
+    webSocket.broadcastTXT("Button clicked");
+    delay(100);
+  } else {
+    
+  }
 }
