@@ -3,8 +3,9 @@
 #include <ESP8266WiFi.h>
 #include <ESP8266WiFiMulti.h>
 #include <WebSocketsServer.h>
+#include <ESP8266HTTPClient.h>
 #include <Hash.h>
-
+#include <ArduinoJson.h>
 ESP8266WiFiMulti WiFiMulti;
 
 WebSocketsServer webSocket = WebSocketsServer(81);
@@ -86,7 +87,7 @@ void loop() {
 
   // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
   if (buttonState == HIGH) {
-    webSocket.broadcastTXT("Button clicked");
+    webSocket.broadcastTXT(" Button clicked");
     delay(100);
   } else {
     
