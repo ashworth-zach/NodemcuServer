@@ -4,8 +4,13 @@
 #include <ESP8266WiFiMulti.h>
 #include <WebSocketsServer.h>
 #include <ESP8266HTTPClient.h>
+#include "DHT.h"
 #include <Hash.h>
-#include <ArduinoJson.h>
+#define DHTPIN D0     // what digital pin we're connected to
+
+
+#define DHTTYPE DHT11   // DHT 11
+DHT dht(DHTPIN, DHTTYPE);
 ESP8266WiFiMulti WiFiMulti;
 
 WebSocketsServer webSocket = WebSocketsServer(81);
@@ -52,6 +57,7 @@ void setup() {
     // USE_SERIAL.begin(921600);
     USE_SERIAL.begin(9600);
     pinMode(buttonPin, INPUT);
+    dht.begin();
     //Serial.setDebugOutput(true);
     USE_SERIAL.setDebugOutput(true);
 
@@ -81,15 +87,34 @@ void loop() {
       char c[] = {(char)Serial.read()};
       webSocket.broadcastTXT(c, sizeof(c));
     }
-    int buttonState = 0; 
-      // read the state of the pushbutton value:
-  buttonState = digitalRead(buttonPin);
+     float h = dht.readHumidity();
+  // Read temperature as Celsius (the default)
+  float t = dht.readTemperature();
+  // Read temperature as Fahrenheit (isFahrenheit = true)
+  float f = dht.readTemperature(true);
 
-  // check if the pushbutton is pressed. If it is, the buttonState is HIGH:
-  if (buttonState == HIGH) {
-    webSocket.broadcastTXT(" Button clicked");
-    delay(100);
-  } else {
-    
+  // Check if any reads failed and exit early (to try again).
+  if (isnan(h) || isnan(t) || isnan(f)) {
+    Serial.println("Failed to read from DHT sensor!");
+    return;
   }
+
+  // Compute heat index in Fahrenheit (the default)
+  float hif = dht.computeHeatIndex(f, h);
+  // Compute heat index in Celsius (isFahreheit = false)
+  float hic = dht.computeHeatIndex(t, h, false);
+
+  Serial.print("Humidity: ");
+  Serial.print(h);
+  Serial.print(" %\t");
+  Serial.print("Temperature: ");
+  Serial.print(t);
+  Serial.print(" *C ");
+  Serial.print(f);
+  Serial.print(" *F\t");
+  Serial.print("Heat index: ");
+  Serial.print(hic);
+  Serial.print(" *C ");
+  Serial.print(hif);
+  Serial.println(" *F");
 }
