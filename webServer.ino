@@ -6,7 +6,7 @@
 #include <ESP8266HTTPClient.h>
 #include "DHT.h"
 #include <Hash.h>
-#define DHTPIN D0     // what digital pin we're connected to
+#define DHTPIN 5     // what digital pin we're connected to
 
 
 #define DHTTYPE DHT11   // DHT 11
@@ -103,18 +103,18 @@ void loop() {
   float hif = dht.computeHeatIndex(f, h);
   // Compute heat index in Celsius (isFahreheit = false)
   float hic = dht.computeHeatIndex(t, h, false);
-
-  Serial.print("Humidity: ");
-  Serial.print(h);
-  Serial.print(" %\t");
-  Serial.print("Temperature: ");
-  Serial.print(t);
-  Serial.print(" *C ");
-  Serial.print(f);
-  Serial.print(" *F\t");
-  Serial.print("Heat index: ");
-  Serial.print(hic);
-  Serial.print(" *C ");
-  Serial.print(hif);
-  Serial.println(" *F");
+  delay(100);
+  USE_SERIAL.print("Humidity: ");
+  USE_SERIAL.print(h);
+  USE_SERIAL.print(" %\t");
+  USE_SERIAL.print("Temperature: ");
+  USE_SERIAL.print(t);
+  USE_SERIAL.print(" *C ");
+  USE_SERIAL.print(f);
+  USE_SERIAL.print(" *F\t");
+  USE_SERIAL.print("Heat index: ");
+  USE_SERIAL.print(hic);
+  USE_SERIAL.print(" *C ");
+  USE_SERIAL.print(hif);
+  USE_SERIAL.println(" *F");
 }
